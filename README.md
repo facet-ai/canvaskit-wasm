@@ -1,5 +1,7 @@
 # canvaskit-wasm
 
+**IMPORTANT**: This is a public repository. Don't push anything sensitive.
+
 This repository contains a custom build of [`canvaskit-wasm`](https://www.npmjs.com/package/canvaskit-wasm). It is based
 on the basic canvaskit build with the following changes:
 

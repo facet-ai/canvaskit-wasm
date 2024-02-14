@@ -1,7 +1,7 @@
 // Minimum TypeScript Version: 4.4
 /// <reference types="@webgpu/types" />
 
-export default function CanvasKitInit(opts?: CanvasKitInitOptions): Promise<CanvasKit>;
+export default function CanvasKitInit(opts: CanvasKitInitOptions): Promise<CanvasKit>;
 
 export interface CanvasKitInitOptions {
     /**
@@ -448,6 +448,14 @@ export interface CanvasKit {
     MakeManagedAnimation(json: string, assets?: Record<string, ArrayBuffer>,
                          filterPrefix?: string, soundMap?: SoundMap): ManagedSkottieAnimation;
 
+    /**
+     * Returns a Particles effect built from the provided json string and assets.
+     * Requires that Particles be compiled into CanvasKit
+     * @param json
+     * @param assets
+     */
+    MakeParticles(json: string, assets?: Record<string, ArrayBuffer>): Particles;
+
     // Constructors, i.e. things made with `new CanvasKit.Foo()`;
     readonly ImageData: ImageDataConstructor;
     readonly ParagraphStyle: ParagraphStyleConstructor;
@@ -461,7 +469,6 @@ export interface CanvasKit {
     // Factories, i.e. things made with CanvasKit.Foo.MakeTurboEncabulator()
     readonly ParagraphBuilder: ParagraphBuilderFactory;
     readonly ColorFilter: ColorFilterFactory;
-    readonly FontCollection: FontCollectionFactory;
     readonly FontMgr: FontMgrFactory;
     readonly ImageFilter: ImageFilterFactory;
     readonly MaskFilter: MaskFilterFactory;
@@ -540,6 +547,7 @@ export interface CanvasKit {
 
     readonly gpu?: boolean; // true if GPU code was compiled in
     readonly managed_skottie?: boolean; // true if advanced (managed) Skottie code was compiled in
+    readonly particles?: boolean; // true if Particles code was compiled in
     readonly rt_effect?: boolean; // true if RuntimeEffect was compiled in
     readonly skottie?: boolean; // true if base Skottie code was compiled in
 
@@ -892,61 +900,14 @@ export interface TextProperty {
     value: TextValue;
 }
 
-/**
- * Transform property value. Maps to AE styled transform.
- */
-export interface TransformValue {
-    /**
-     * Anchor point for transform. x and y value.
-     */
-    anchor: Point;
-    /**
-     * Position of transform. x and y value.
-     */
-    position: Point;
-    /**
-     * Scale of transform. x and y value.
-     */
-    scale: Vector2;
-    /**
-     * Rotation of transform in degrees.
-     */
-    rotation: number;
-    /**
-     * Skew to apply during transform.
-     */
-    skew: number;
-    /**
-     * Direction of skew in degrees.
-     */
-    skew_axis: number;
-}
-
-/**
- * Named transform property for Skottie property observer.
- */
-export interface TransformProperty {
-    /**
-     * Property identifier, usually the node name.
-     */
-    key: string;
-    /**
-     * Property value.
-     */
-    value: TransformValue;
-}
-
 export interface ManagedSkottieAnimation extends SkottieAnimation {
     setColor(key: string, color: InputColor): boolean;
     setOpacity(key: string, opacity: number): boolean;
     setText(key: string, text: string, size: number): boolean;
-    setTransform(key: string, anchor: InputPoint, position: InputPoint, scale: InputVector2,
-                 rotation: number, skew: number, skew_axis: number): boolean;
     getMarkers(): AnimationMarker[];
     getColorProps(): ColorProperty[];
     getOpacityProps(): OpacityProperty[];
     getTextProps(): TextProperty[];
-    getTransformProps(): TransformProperty[];
 }
 
 /**
@@ -998,12 +959,6 @@ export interface Paragraph extends EmbindObject<Paragraph> {
      * @param width
      */
     layout(width: number): void;
-
-    /**
-     * When called after shaping, returns the glyph IDs which were not matched
-     * by any of the provided fonts.
-     */
-    unresolvedCodepoints(): number[];
 }
 
 export interface ParagraphBuilder extends EmbindObject<ParagraphBuilder> {
@@ -1032,35 +987,25 @@ export interface ParagraphBuilder extends EmbindObject<ParagraphBuilder> {
     build(): Paragraph;
 
     /**
-     * @param words is an array of word edges (starting or ending). You can
-     * pass 2 elements (0 as a start of the entire text and text.size as the
-     * end). This information is only needed for a specific API method getWords.
+     * Returns a Paragraph object that can be used to be layout and
+     * paint the text to an Canvas.
+     * @param bidiRegions is an array of unsigned integers that should be
+     * treated as triples (starting index, ending index, direction).
+     * Direction == 1 means left-to-right, direction == 0 is right-to-left. It's
+     * recommended to use `CanvasKit.TextDirection.RTL.value` or
+     * `CanvasKit.TextDirection.LTR.value` instead of hardcoding 0 or 1.
      *
-     * The indices are expected to be relative to the UTF-8 representation of
+     * The indices are expected to be relative to the UTF-16 representation of
      * the text.
-     */
-    setWordsUtf8(words: InputWords): void;
-    /**
      * @param words is an array of word edges (starting or ending). You can
      * pass 2 elements (0 as a start of the entire text and text.size as the
-     * end). This information is only needed for a specific API method getWords.
+     * end). This information only needed for a specific API method getWords.
      *
      * The indices are expected to be relative to the UTF-16 representation of
      * the text.
      *
      * The `Intl.Segmenter` API can be used as a source for this data.
-     */
-    setWordsUtf16(words: InputWords): void;
-
-    /**
-     * @param graphemes is an array of indexes in the input text that point
-     * to the start of each grapheme.
      *
-     * The indices are expected to be relative to the UTF-8 representation of
-     * the text.
-     */
-    setGraphemeBreaksUtf8(graphemes: InputGraphemes): void;
-    /**
      * @param graphemes is an array of indexes in the input text that point
      * to the start of each grapheme.
      *
@@ -1068,20 +1013,7 @@ export interface ParagraphBuilder extends EmbindObject<ParagraphBuilder> {
      * the text.
      *
      * The `Intl.Segmenter` API can be used as a source for this data.
-     */
-    setGraphemeBreaksUtf16(graphemes: InputGraphemes): void;
-
-    /**
-     * @param lineBreaks is an array of unsigned integers that should be
-     * treated as pairs (index, break type) that point to the places of possible
-     * line breaking if needed. It should include 0 as the first element.
-     * Break type == 0 means soft break, break type == 1 is a hard break.
      *
-     * The indices are expected to be relative to the UTF-8 representation of
-     * the text.
-     */
-    setLineBreaksUtf8(lineBreaks: InputLineBreaks): void;
-    /**
      * @param lineBreaks is an array of unsigned integers that should be
      * treated as pairs (index, break type) that point to the places of possible
      * line breaking if needed. It should include 0 as the first element.
@@ -1092,7 +1024,10 @@ export interface ParagraphBuilder extends EmbindObject<ParagraphBuilder> {
      *
      * Chrome's `v8BreakIterator` API can be used as a source for this data.
      */
-    setLineBreaksUtf16(lineBreaks: InputLineBreaks): void;
+    buildWithClientInfo(bidiRegions?: InputBidiRegions | null,
+                        words?: InputWords | null,
+                        graphemes?: InputGraphemes | null,
+                        lineBreaks?: InputLineBreaks | null): Paragraph;
 
     /**
      * Returns the entire Paragraph text (which is useful in case that text
@@ -1144,6 +1079,72 @@ export interface ParagraphStyle {
 export interface PositionWithAffinity {
     pos: number;
     affinity: Affinity;
+}
+
+/**
+ * See SkParticleEffect.h for more details.
+ */
+export interface Particles extends EmbindObject<Particles> {
+    /**
+     * Draws the current state of the particles on the given canvas.
+     * @param canvas
+     */
+    draw(canvas: Canvas): void;
+
+    /**
+     * Returns a Float32Array bound to the WASM memory of these uniforms. Changing these
+     * floats will change the corresponding uniforms instantly.
+     */
+    uniforms(): Float32Array;
+
+    /**
+     * Returns the nth uniform from the effect.
+     * @param index
+     */
+    getUniform(index: number): SkSLUniform;
+
+    /**
+     * Returns the number of uniforms on the effect.
+     */
+    getUniformCount(): number;
+
+    /**
+     * Returns the total number of floats across all uniforms on the effect. This is the length
+     * of the array returned by `uniforms()`. For example, an effect with a single float3 uniform,
+     * would return 1 from `getUniformCount()`, but 3 from `getUniformFloatCount()`.
+     */
+    getUniformFloatCount(): number;
+
+    /**
+     * Returns the name of the nth effect uniform.
+     * @param index
+     */
+    getUniformName(index: number): string;
+
+    /**
+     * Sets the base position of the effect.
+     * @param point
+     */
+    setPosition(point: InputPoint): void;
+
+    /**
+     * Sets the base rate of the effect.
+     * @param rate
+     */
+    setRate(rate: number): void;
+
+    /**
+     * Starts playing the effect.
+     * @param now
+     * @param looping
+     */
+    start(now: number, looping: boolean): void;
+
+    /**
+     * Updates the effect using the new time.
+     * @param now
+     */
+    update(now: number): void;
 }
 
 export interface SkSLUniform {
@@ -2137,12 +2138,6 @@ export interface Paint extends EmbindObject<Paint> {
     setColorInt(color: ColorInt, colorSpace?: ColorSpace): void;
 
     /**
-     * Requests, but does not require, to distribute color error.
-     * @param shouldDither
-     */
-    setDither(shouldDither: boolean): void;
-
-    /**
      * Sets the current image filter, replacing the existing one if there was one.
      * @param filter
      */
@@ -3055,23 +3050,6 @@ export interface TypefaceFontProvider extends EmbindObject<TypefaceFontProvider>
     registerFont(bytes: ArrayBuffer | Uint8Array, family: string): void;
 }
 
-/**
- * See FontCollection.h in SkParagraph for more details
- */
-export interface FontCollection extends EmbindObject<FontCollection> {
-    /**
-     * Enable fallback to dynamically discovered fonts for characters that are not handled
-     * by the text style's fonts.
-     */
-    enableFontFallback(): void;
-
-    /**
-     * Set the default provider used to locate fonts.
-     */
-    setDefaultFontManager(fontManager: TypefaceFontProvider | null): void;
-}
-
-
 export interface URange {
     start: number;
     end: number;
@@ -3337,22 +3315,9 @@ export interface ParagraphBuilderFactory {
     MakeFromFontProvider(style: ParagraphStyle, fontSrc: TypefaceFontProvider): ParagraphBuilder;
 
     /**
-     * Creates a ParagraphBuilder using the given font collection.
-     * @param style
-     * @param fontCollection
-     */
-    MakeFromFontCollection(style: ParagraphStyle, fontCollection: FontCollection): ParagraphBuilder;
-
-    /**
      * Return a shaped array of lines
      */
     ShapeText(text: string, runs: FontBlock[], width?: number): ShapedLine[];
-
-    /**
-     * Whether the paragraph builder requires ICU data to be provided by the
-     * client.
-     */
-    RequiresClientICU(): boolean;
 }
 
 export interface ParagraphStyleConstructor {
@@ -3994,13 +3959,6 @@ export interface TypefaceFontProviderFactory {
     Make(): TypefaceFontProvider;
 }
 
-export interface FontCollectionFactory {
-    /**
-     * Return an empty FontCollection
-     */
-    Make(): FontCollection;
-}
-
 /**
  * Functions for manipulating vectors. It is Loosely based off of SkV3 in SkM44.h but Skia
  * also has SkVec2 and Skv4. This combines them and works on vectors of any length.
@@ -4161,12 +4119,6 @@ export type WeightList = MallocObj | Float32Array | number[];
 export type Matrix4x4 = Float32Array;
 export type Matrix3x3 = Float32Array;
 export type Matrix3x2 = Float32Array;
-
-/**
- * Vector2 represents an x, y coordinate or vector. It has length 2.
- */
-export type Vector2 = Point;
-
 /**
  * Vector3 represents an x, y, z coordinate or vector. It has length 3.
  */
@@ -4237,12 +4189,6 @@ export type InputRRect = MallocObj | RRect | number[];
  * be scos, ssin, tx, ty for each RSXForm. See RSXForm.h for more details.
  */
 export type InputFlattenedRSXFormArray = MallocObj | Float32Array | number[];
-
-/**
- * InputVector2 maps to InputPoint, the alias is to not use the word "Point" when not accurate, but
- * they are in practice the same, a representation of x and y.
- */
-export type InputVector2 =  InputPoint;
 /**
  * CanvasKit APIs accept normal arrays, typed arrays, or Malloc'd memory as a vector of 3 floats.
  * For example, this is the x, y, z coordinates.

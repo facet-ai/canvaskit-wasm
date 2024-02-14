@@ -41,6 +41,7 @@ CanvasKitInit({locateFile: (file: string) => '/node_modules/canvaskit/bin/' + fi
     paintTests(CK);
     paragraphTests(CK);
     paragraphBuilderTests(CK);
+    particlesTests(CK);
     pathEffectTests(CK);
     pathTests(CK);
     pictureTests(CK);
@@ -436,7 +437,6 @@ function paintTests(CK: CanvasKit, colorFilter?: ColorFilter, imageFilter?: Imag
     paint.setColorFilter(colorFilter);
     paint.setColorInt(CK.ColorAsInt(20, 30, 40));
     paint.setColorInt(CK.ColorAsInt(20, 30, 40), CK.ColorSpace.SRGB);
-    paint.setDither(true);
     paint.setImageFilter(imageFilter);
     paint.setMaskFilter(maskFilter);
     paint.setPathEffect(pathEffect);
@@ -557,7 +557,6 @@ function paragraphTests(CK: CanvasKit, p?: Paragraph) {
     p.layout(300);
     const m = p.getLineMetrics(); // $ExpectType LineMetrics[]
     const n = CK.GlyphRunFlags.IsWhiteSpace === 1;
-    const o = p.unresolvedCodepoints(); // $ExpectType number[]
 }
 
 function paragraphBuilderTests(CK: CanvasKit, fontMgr?: FontMgr, paint?: Paint) {
@@ -615,18 +614,38 @@ function paragraphBuilderTests(CK: CanvasKit, fontMgr?: FontMgr, paint?: Paint) 
     builder2.reset();
 
     const text = builder.getText(); // $ExpectType string
-    builder.setWordsUtf16(new Uint32Array(10));
-    builder.setGraphemeBreaksUtf16(new Uint32Array(10));
-    builder.setLineBreaksUtf16(new Uint32Array(10));
-    const paragraph3 = builder.build(); // $ExpectType Paragraph
+    const mallocedBidis = CK.Malloc(Uint32Array, 3);
+    const mallocedWords = new Uint32Array(10);
+    const mallocedGraphemes =  new Uint32Array(10);
+    const mallocedLineBreaks =  new Uint32Array(10);
+    const paragraph3 = builder.buildWithClientInfo(// $ExpectType Paragraph
+        mallocedBidis,
+        mallocedWords,
+        mallocedGraphemes,
+        mallocedLineBreaks
+    );
+}
 
-    const fontCollection = CK.FontCollection.Make(); // $ExpectType FontCollection
-    fontCollection.enableFontFallback();
-    fontCollection.setDefaultFontManager(fontSrc);
-    const fcBuilder = CK.ParagraphBuilder.MakeFromFontCollection(// $ExpectType ParagraphBuilder
-        paraStyle, fontCollection);
-    fcBuilder.addText('12345');
-    const fcParagraph = fcBuilder.build();
+function particlesTests(CK: CanvasKit, canvas?: Canvas) {
+    if (!canvas) return;
+
+    const par = CK.MakeParticles('some json'); // $ExpectType Particles
+    par.draw(canvas);
+    par.uniforms()[0] = 1.2;
+    const a = par.getUniform(1); // $ExpectType SkSLUniform
+    const b = par.getUniformCount(); // $ExpectType number
+    const c = par.getUniformFloatCount(); // $ExpectType number
+    const d = par.getUniformName(3); // $ExpectType string
+    par.uniforms()[2] = 4.5;
+    par.setPosition([3, 5]);
+    par.setRate(3);
+    par.start(0, true);
+    par.update(2);
+
+    const buff = new ArrayBuffer(10);
+    const par2 = CK.MakeParticles('other json', { // $ExpectType Particles
+        'flightAnim.gif': buff,
+    });
 }
 
 function pathEffectTests(CK: CanvasKit, path?: Path) {
@@ -761,7 +780,6 @@ function skottieTests(CK: CanvasKit, canvas?: Canvas) {
     const i = mAnim.setColor('foo', CK.RED);  // $ExpectType boolean
     const j = mAnim.setOpacity('foo', 0.5);  // $ExpectType boolean
     const k = mAnim.setText('foo', 'bar', 12);  // $ExpectType boolean
-    const l = mAnim.setTransform('foo', [1, 2], [3, 4], [5, 6], 90, 1, 0);  // $ExpectType boolean
 }
 
 function shaderTests(CK: CanvasKit) {

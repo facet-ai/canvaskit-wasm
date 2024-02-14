@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-CANVASKIT_VERSION=0.38.2
+CANVASKIT_VERSION=0.38.0
 
 repo_root=$(git rev-parse --show-toplevel)
 
@@ -14,7 +14,7 @@ if [ ! -d skia ]; then
 else
   # Checkout the tag if the repo was already cloned
   cd skia
-  git fetch origin +refs/tags/"$canvaskit_tag"
+  git fetch origin +refs/tags/"$canvaskit_tag":refs/tags/"$canvaskit_tag"
   git checkout "$canvaskit_tag"
   git reset --hard "$canvaskit_tag"
   cd -

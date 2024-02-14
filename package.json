@@ -23,9 +23,21 @@
     "@webgpu/types": "0.1.21"
   },
   "exports": {
-    ".": null,
-    "./bin/canvaskit": null,
-    "./bin/canvaskit.js": null,
-    "./bin/canvaskit.wasm": null
+    ".": {
+      "require": "./bin/canvaskit.js",
+      "import": "./bin/canvaskit.js",
+      "types": "./types/index.d.ts"
+    },
+    "./bin/canvaskit": {
+      "require": "./bin/canvaskit.js",
+      "import": "./bin/canvaskit.js",
+      "types": "./types/index.d.ts"
+    },
+    "./bin/canvaskit.js": {
+      "require": "./bin/canvaskit.js",
+      "import": "./bin/canvaskit.js",
+      "types": "./types/index.d.ts"
+    },
+    "./bin/canvaskit.wasm": "./bin/canvaskit.wasm"
   }
 }

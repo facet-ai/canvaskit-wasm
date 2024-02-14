@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
+set -euo pipefail
 
-CANVASKIT_VERSION=0.38.0
+# Git ref of the skia repo for which to build canvaskit
+# We use git refs instead of tags because not all releases are tagged
+SKIA_REF=a004a27085d7dcc4efc3766c9abe92df03654c7c # 0.39.1
 
 repo_root=$(git rev-parse --show-toplevel)
 
-# Download canvaskit
-canvaskit_tag="canvaskit/$CANVASKIT_VERSION"
+# Create an empty skia repo if it doesn't exist
 if [ ! -d skia ]; then
-  # Clone the repo if it doesn't exist
-  git clone --depth 1 --branch "$canvaskit_tag" https://github.com/google/skia.git
-else
-  # Checkout the tag if the repo was already cloned
+  mkdir skia
   cd skia
-  git fetch origin +refs/tags/"$canvaskit_tag":refs/tags/"$canvaskit_tag"
-  git checkout "$canvaskit_tag"
-  git reset --hard "$canvaskit_tag"
+  git init
+  git remote add origin https://github.com/google/skia.git
   cd -
 fi
+
+# Fetch the git ref
+cd skia
+git fetch --depth 1 origin "$SKIA_REF"
+git reset --hard "$SKIA_REF"
+cd -
 
 # Install dependencies
 cd skia
@@ -29,7 +32,6 @@ bin/fetch-ninja
 cd modules/canvaskit
 ./compile.sh release \
   no_skottie \
-  no_particles \
   no_sksl_trace \
   no_alias_font \
   no_effects_deserialization \

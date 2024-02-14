@@ -29,6 +29,7 @@ bin/fetch-ninja
 cd modules/canvaskit
 ./compile.sh release \
   no_skottie \
+  no_particles \
   no_sksl_trace \
   no_alias_font \
   no_effects_deserialization \
